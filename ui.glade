@@ -400,6 +400,7 @@
             <property name="receives_default">True</property>
             <property name="image">image17</property>
             <property name="always_show_image">True</property>
+            <signal name="clicked" handler="resetClicked" swapped="no"/>
           </object>
         </child>
         <child>
@@ -409,6 +410,7 @@
             <property name="receives_default">True</property>
             <property name="image">image18</property>
             <property name="always_show_image">True</property>
+            <signal name="clicked" handler="aboutClicked" swapped="no"/>
           </object>
           <packing>
             <property name="position">1</property>

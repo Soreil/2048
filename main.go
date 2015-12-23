@@ -4,31 +4,42 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/gotk3/gotk3/gtk"
 )
 
+type app struct {
+	window       *gtk.Window
+	resetButton  *gtk.Button
+	aboutButton  *gtk.Button
+	scoreCounter *gtk.Label
+	images       [16]*gtk.Image
+	statusBar    *gtk.Statusbar
+	sync.Mutex
+}
+
 func main() {
 	gtk.Init(&os.Args)
 
+	//The window object
 	builder, err := gtk.BuilderNew()
 	if err != nil {
 		panic(err)
 	}
+
+	//Signal map containing functions for the signals
 	signalmap := make(map[string]interface{})
 	builder.AddFromFile("ui.glade")
 
-	var resetButton *gtk.Button
-	var aboutButton *gtk.Button
-	var scoreCounter *gtk.Label
-	var window *gtk.Window
+	var app app
 
 	obj, err := builder.GetObject("button1")
 	if err != nil {
 		panic(err)
 	}
 	if b, ok := obj.(*gtk.Button); ok {
-		resetButton = b
+		app.resetButton = b
 	}
 
 	obj, err = builder.GetObject("button2")
@@ -36,7 +47,7 @@ func main() {
 		panic(err)
 	}
 	if b, ok := obj.(*gtk.Button); ok {
-		aboutButton = b
+		app.aboutButton = b
 	}
 
 	obj, err = builder.GetObject("label3")
@@ -44,7 +55,7 @@ func main() {
 		panic(err)
 	}
 	if b, ok := obj.(*gtk.Label); ok {
-		scoreCounter = b
+		app.scoreCounter = b
 	}
 
 	obj, err = builder.GetObject("window1")
@@ -52,11 +63,11 @@ func main() {
 		panic(err)
 	}
 	if w, ok := obj.(*gtk.Window); ok {
-		window = w
+		app.window = w
 	}
 
-	aboutButton.Connect("clicked", func() {
-		s, err := scoreCounter.GetText()
+	signalmap["aboutClicked"] = func() {
+		s, err := app.scoreCounter.GetText()
 		if err != nil {
 			panic(err)
 		}
@@ -69,16 +80,18 @@ func main() {
 			panic(err)
 		}
 
-		scoreCounter.SetText(ns)
-	})
+		app.scoreCounter.SetText(ns)
+	}
 
-	resetButton.Connect("clicked", func() {})
+	signalmap["resetClicked"] = func() {
+		fmt.Println("Reset clicked!")
+	}
 
 	signalmap["removeWindow"] = func() {
 		gtk.MainQuit()
 	}
 	builder.ConnectSignals(signalmap)
 	fmt.Println(signalmap)
-	window.Show()
+	app.window.Show()
 	gtk.Main()
 }
