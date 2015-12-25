@@ -2,35 +2,42 @@
 <!-- Generated with glade 3.19.0 -->
 <interface>
   <requires lib="gtk+" version="3.16"/>
-  <object class="GtkImage" id="image17">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-refresh</property>
-    <property name="icon_size">3</property>
-  </object>
-  <object class="GtkImage" id="image18">
+  <object class="GtkImage" id="aboutIcon">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="stock">gtk-about</property>
     <property name="icon_size">3</property>
   </object>
-  <object class="GtkWindow" id="window1">
+  <object class="GtkImage" id="helpIcon">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-help</property>
+    <property name="icon_size">3</property>
+  </object>
+  <object class="GtkImage" id="resetIcon">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-refresh</property>
+    <property name="icon_size">3</property>
+  </object>
+  <object class="GtkWindow" id="window">
     <property name="width_request">400</property>
     <property name="height_request">400</property>
     <property name="can_focus">False</property>
     <property name="icon_name">face-wink</property>
     <signal name="destroy" handler="removeWindow" swapped="no"/>
+    <signal name="key-press-event" handler="inputHandler" swapped="no"/>
     <child>
-      <object class="GtkBox" id="box1">
+      <object class="GtkBox" id="windowBody">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkBox" id="box2">
+          <object class="GtkBox" id="infoBar">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <child>
-              <object class="GtkLabel" id="label1">
+              <object class="GtkLabel" id="encouragement">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="label" translatable="yes">Good luck!</property>
@@ -42,13 +49,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="label3">
+              <object class="GtkLabel" id="scoreCounter">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">30428</property>
-                <attributes>
-                  <attribute name="weight" value="ultraheavy"/>
-                </attributes>
+                <property name="halign">start</property>
+                <property name="label">0</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -58,7 +63,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="label2">
+              <object class="GtkLabel" id="scoreLabel">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="label" translatable="yes">score: </property>
@@ -81,17 +86,18 @@
           </packing>
         </child>
         <child>
-          <object class="GtkGrid" id="grid1">
+          <object class="GtkGrid" id="tiles">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="row_homogeneous">True</property>
             <property name="column_homogeneous">True</property>
             <child>
-              <object class="GtkEventBox" id="eventbox1">
+              <object class="GtkEventBox" id="eventTile1">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <signal name="event" handler="tile1Handler" swapped="no"/>
                 <child>
-                  <object class="GtkImage" id="image1">
+                  <object class="GtkImage" id="imageTile1">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -104,11 +110,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox2">
+              <object class="GtkEventBox" id="eventTile2">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image2">
+                  <object class="GtkImage" id="imageTile2">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -121,11 +127,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox3">
+              <object class="GtkEventBox" id="eventTile3">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image3">
+                  <object class="GtkImage" id="imageTile3">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -138,11 +144,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox4">
+              <object class="GtkEventBox" id="eventTile4">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image4">
+                  <object class="GtkImage" id="imageTile4">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -155,11 +161,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox5">
+              <object class="GtkEventBox" id="eventTile5">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image5">
+                  <object class="GtkImage" id="imageTile5">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -172,11 +178,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox6">
+              <object class="GtkEventBox" id="eventTile6">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image6">
+                  <object class="GtkImage" id="imageTile6">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -189,11 +195,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox7">
+              <object class="GtkEventBox" id="eventTile7">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image7">
+                  <object class="GtkImage" id="imageTile7">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -206,11 +212,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox8">
+              <object class="GtkEventBox" id="eventTile8">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image8">
+                  <object class="GtkImage" id="imageTile8">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -223,11 +229,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox9">
+              <object class="GtkEventBox" id="eventTile9">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image9">
+                  <object class="GtkImage" id="imageTile9">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -240,11 +246,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox10">
+              <object class="GtkEventBox" id="eventTile10">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image10">
+                  <object class="GtkImage" id="imageTile10">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -257,11 +263,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox11">
+              <object class="GtkEventBox" id="eventTile11">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image11">
+                  <object class="GtkImage" id="imageTile11">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -274,11 +280,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox12">
+              <object class="GtkEventBox" id="eventTile12">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image12">
+                  <object class="GtkImage" id="imageTile12">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -291,11 +297,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox13">
+              <object class="GtkEventBox" id="eventTile13">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image13">
+                  <object class="GtkImage" id="imageTile13">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -308,11 +314,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox14">
+              <object class="GtkEventBox" id="eventTile14">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image14">
+                  <object class="GtkImage" id="imageTile14">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -325,11 +331,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox15">
+              <object class="GtkEventBox" id="eventTile15">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image15">
+                  <object class="GtkImage" id="imageTile15">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -342,11 +348,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox16">
+              <object class="GtkEventBox" id="eventTile16">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkImage" id="image16">
+                  <object class="GtkImage" id="imageTile16">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="stock">gtk-missing-image</property>
@@ -366,7 +372,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkStatusbar" id="statusbar1">
+          <object class="GtkStatusbar" id="statusBar">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="margin_left">10</property>
@@ -377,6 +383,8 @@
             <property name="margin_bottom">6</property>
             <property name="orientation">vertical</property>
             <property name="spacing">2</property>
+            <signal name="text-popped" handler="statusPop" swapped="no"/>
+            <signal name="text-pushed" handler="statusPush" swapped="no"/>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -387,36 +395,94 @@
       </object>
     </child>
     <child type="titlebar">
-      <object class="GtkHeaderBar" id="headerbar1">
+      <object class="GtkHeaderBar" id="headerBar">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="title">2048</property>
+        <property name="subtitle">Use arrow keys to move</property>
         <property name="has_subtitle">False</property>
         <property name="show_close_button">True</property>
         <child>
-          <object class="GtkButton" id="button1">
+          <object class="GtkButton" id="resetButton">
             <property name="visible">True</property>
-            <property name="can_focus">True</property>
+            <property name="can_focus">False</property>
             <property name="receives_default">True</property>
-            <property name="image">image17</property>
+            <property name="image">resetIcon</property>
             <property name="always_show_image">True</property>
             <signal name="clicked" handler="resetClicked" swapped="no"/>
           </object>
         </child>
         <child>
-          <object class="GtkButton" id="button2">
+          <object class="GtkButton" id="helpButton">
             <property name="visible">True</property>
-            <property name="can_focus">True</property>
+            <property name="can_focus">False</property>
             <property name="receives_default">True</property>
-            <property name="image">image18</property>
-            <property name="always_show_image">True</property>
-            <signal name="clicked" handler="aboutClicked" swapped="no"/>
+            <property name="image">helpIcon</property>
+            <signal name="clicked" handler="helpClicked" swapped="no"/>
           </object>
           <packing>
             <property name="position">1</property>
           </packing>
         </child>
+        <child>
+          <object class="GtkButton" id="aboutButton">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="receives_default">True</property>
+            <property name="image">aboutIcon</property>
+            <property name="always_show_image">True</property>
+            <signal name="clicked" handler="aboutClicked" swapped="no"/>
+          </object>
+          <packing>
+            <property name="pack_type">end</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
       </object>
+    </child>
+  </object>
+  <object class="GtkAboutDialog" id="about">
+    <property name="can_focus">False</property>
+    <property name="modal">True</property>
+    <property name="destroy_with_parent">True</property>
+    <property name="type_hint">normal</property>
+    <property name="deletable">False</property>
+    <property name="transient_for">window</property>
+    <property name="attached_to">window</property>
+    <property name="program_name">2048</property>
+    <property name="version">0.1</property>
+    <property name="copyright" translatable="yes">©The Current Year™</property>
+    <property name="comments" translatable="yes">Fun little program.
+Written using Go and the Gotk3 package.</property>
+    <property name="website">www.x61.eu</property>
+    <property name="authors">Sjon Kosse</property>
+    <property name="documenters">Sjon Kosse</property>
+    <property name="translator_credits" translatable="yes">Sjon Kosse</property>
+    <property name="artists">Sjon Kosse</property>
+    <property name="logo_icon_name">help-faq</property>
+    <child internal-child="vbox">
+      <object class="GtkBox" id="aboutdialog-vbox1">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox" id="aboutdialog-action_area1">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <placeholder/>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <child type="titlebar">
+      <placeholder/>
     </child>
   </object>
 </interface>
