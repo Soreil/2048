@@ -9,6 +9,7 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 )
 
+//Keycodes used by GTK
 const (
 	keyLeft  = 65361
 	keyDown  = 65364
@@ -20,11 +21,13 @@ const (
 	keyL     = 108
 )
 
+//Image resides in the EventBox
 type tile struct {
 	event *gtk.EventBox
 	image *gtk.Image
 }
 
+//All elements from the builder output we will work with
 type app struct {
 	window        *gtk.Window
 	about         *gtk.AboutDialog
@@ -40,6 +43,7 @@ type app struct {
 	statusID      uint
 }
 
+//Images of tiles, if a score above 4096 happens we will need new tiles!
 var nums = map[int]string{
 	2:    "img/2.png",
 	4:    "img/4.png",
@@ -58,17 +62,18 @@ var nums = map[int]string{
 func main() {
 	gtk.Init(&os.Args)
 
-	//The window object
+	//For autoconnect usage
+	signalmap := make(map[string]interface{})
+	var app app
+
 	builder, err := gtk.BuilderNew()
 	if err != nil {
 		panic(err)
 	}
-
-	//Signal map containing functions for the signals
-	signalmap := make(map[string]interface{})
+	//Read window description
 	builder.AddFromFile("ui.glade")
 
-	var app app
+	//Set up all builder elements
 	for i := 0; i < 16; i++ {
 		n := strconv.Itoa(i + 1)
 		obj, err := builder.GetObject("eventTile" + n)
@@ -166,8 +171,16 @@ func main() {
 	if w, ok := obj.(*gtk.Window); ok {
 		app.window = w
 	}
+	//Done getting elements
 
-	signalmap["helpCLicked"] = func() {
+	//Context is needed so we can add messages
+	//We will only have one Context
+	app.statusID = app.statusBar.GetContextId("arrow keys")
+
+	//Signal handlers
+
+	//Placeholder
+	signalmap["helpClicked"] = func() {
 		s, err := app.scoreCounter.GetText()
 		if err != nil {
 			panic(err)
@@ -191,6 +204,7 @@ func main() {
 		}
 	}
 
+	//TODO(sjon): Change to storing images in memory instead of loading from disk every single time
 	signalmap["resetClicked"] = func() {
 		for i := 0; i < 16; i++ {
 			app.tiles[i].image.SetFromFile("img/empty.png")
@@ -198,10 +212,13 @@ func main() {
 		app.scoreCounter.SetLabel("0")
 	}
 
+	//Quit singal handler
 	signalmap["removeWindow"] = func() {
 		gtk.MainQuit()
 	}
 
+	//Currently only for moving the tiles
+	//TODO(sjon): Change to not duplicate code for different input schemes
 	signalmap["inputHandler"] = func(win *gtk.Window, ev *gdk.Event) {
 		keyEvent := &gdk.EventKey{ev}
 		switch keyEvent.KeyVal() {
@@ -234,14 +251,17 @@ func main() {
 		}
 	}
 
-	app.statusID = app.statusBar.GetContextId("arrow keys")
-
 	builder.ConnectSignals(signalmap)
+	//Done with signal handlers
+
+	//Start at the default state
 	signalmap["resetClicked"].(func())()
+
 	app.window.Show()
 	gtk.Main()
 }
 
+//Relies on random map traversal
 func randomImage() string {
 	for _, v := range nums {
 		return v
