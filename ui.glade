@@ -41,6 +41,9 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="label" translatable="yes">Good luck!</property>
+                <attributes>
+                  <attribute name="font-desc" value="&lt;Enter Value&gt; 12"/>
+                </attributes>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -54,6 +57,9 @@
                 <property name="can_focus">False</property>
                 <property name="halign">start</property>
                 <property name="label">0</property>
+                <attributes>
+                  <attribute name="font-desc" value="&lt;Enter Value&gt; 12"/>
+                </attributes>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -68,7 +74,8 @@
                 <property name="can_focus">False</property>
                 <property name="label" translatable="yes">score: </property>
                 <attributes>
-                  <attribute name="weight" value="heavy"/>
+                  <attribute name="font-desc" value="&lt;Enter Value&gt; 12"/>
+                  <attribute name="weight" value="normal"/>
                 </attributes>
               </object>
               <packing>
@@ -410,6 +417,7 @@
             <property name="image">resetIcon</property>
             <property name="always_show_image">True</property>
             <signal name="clicked" handler="resetClicked" swapped="no"/>
+            <accelerator key="r" signal="clicked"/>
           </object>
         </child>
         <child>
@@ -419,6 +427,7 @@
             <property name="receives_default">True</property>
             <property name="image">helpIcon</property>
             <signal name="clicked" handler="helpClicked" swapped="no"/>
+            <accelerator key="F1" signal="clicked"/>
           </object>
           <packing>
             <property name="position">1</property>
@@ -484,5 +493,12 @@ Written using Go and the Gotk3 package.</property>
     <child type="titlebar">
       <placeholder/>
     </child>
+  </object>
+  <object class="GtkSizeGroup" id="scoreSize">
+    <property name="mode">vertical</property>
+    <widgets>
+      <widget name="scoreCounter"/>
+      <widget name="scoreLabel"/>
+    </widgets>
   </object>
 </interface>
