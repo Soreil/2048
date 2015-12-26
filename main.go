@@ -1,12 +1,26 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
+)
+
+type direction int
+
+//movement directions
+const (
+	goLeft direction = iota
+	goDown
+	goUp
+	goRight
 )
 
 //Keycodes used by GTK
@@ -27,9 +41,21 @@ type tile struct {
 	image *gtk.Image
 }
 
+type gameState struct {
+	grid  grid
+	score int
+}
+
+type grid [4][4]int
+
+func (g grid) String() string {
+	return fmt.Sprintf("\n%4v\n%4v\n%4v\n%4v", g[0], g[1], g[2], g[3])
+}
+
 //All elements from the builder output we will work with
 type app struct {
 	window        *gtk.Window
+	display       *gdk.Display
 	about         *gtk.AboutDialog
 	headerBar     *gtk.HeaderBar
 	resetButton   *gtk.Button
@@ -59,12 +85,17 @@ var nums = map[int]string{
 	4096: "img/4096.png",
 }
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 func main() {
 	gtk.Init(&os.Args)
 
 	//For autoconnect usage
 	signalmap := make(map[string]interface{})
 	var app app
+	var game gameState
 
 	builder, err := gtk.BuilderNew()
 	if err != nil {
@@ -171,6 +202,11 @@ func main() {
 	if w, ok := obj.(*gtk.Window); ok {
 		app.window = w
 	}
+
+	app.display, err = gdk.DisplayGetDefault()
+	if err != nil {
+		panic(err)
+	}
 	//Done getting elements
 
 	//Context is needed so we can add messages
@@ -181,20 +217,6 @@ func main() {
 
 	//Placeholder
 	signalmap["helpClicked"] = func() {
-		s, err := app.scoreCounter.GetText()
-		if err != nil {
-			panic(err)
-		}
-		n, err := strconv.Atoi(s)
-		if err != nil {
-			panic(err)
-		}
-		ns := strconv.Itoa(n + 1)
-		if err != nil {
-			panic(err)
-		}
-
-		app.scoreCounter.SetText(ns)
 	}
 
 	signalmap["aboutClicked"] = func() {
@@ -208,8 +230,16 @@ func main() {
 	signalmap["resetClicked"] = func() {
 		for i := 0; i < 16; i++ {
 			app.tiles[i].image.SetFromFile("img/empty.png")
+			game.grid[i/4][i%4] = 0
 		}
-		app.scoreCounter.SetLabel("0")
+		game.score = 0
+		score := strconv.Itoa(game.score)
+		app.scoreCounter.SetLabel(score)
+		err := game.spawn()
+		if err != nil {
+			panic(err)
+		}
+		log.Println(game.grid)
 	}
 
 	//Quit singal handler
@@ -224,28 +254,48 @@ func main() {
 		switch keyEvent.KeyVal() {
 		case keyLeft:
 			app.statusBar.Push(app.statusID, "left pressed")
-			app.tiles[0+rand.Intn(4)*4].image.SetFromFile(randomImage())
+			err := game.move(goLeft)
+			if err != nil {
+				app.display.Beep()
+				return
+			}
+			log.Println(game.grid)
+			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
 		case keyH:
 			app.statusBar.Push(app.statusID, "left pressed")
-			app.tiles[0+rand.Intn(4)*4].image.SetFromFile(randomImage())
 		case keyDown:
 			app.statusBar.Push(app.statusID, "down pressed")
-			app.tiles[1+rand.Intn(4)*4].image.SetFromFile(randomImage())
+			err := game.move(goDown)
+			if err != nil {
+				app.display.Beep()
+				return
+			}
+			log.Println(game.grid)
+			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
 		case keyJ:
 			app.statusBar.Push(app.statusID, "down pressed")
-			app.tiles[1+rand.Intn(4)*4].image.SetFromFile(randomImage())
 		case keyUp:
 			app.statusBar.Push(app.statusID, "up pressed")
-			app.tiles[2+rand.Intn(4)*4].image.SetFromFile(randomImage())
+			err := game.move(goUp)
+			if err != nil {
+				app.display.Beep()
+				return
+			}
+			log.Println(game.grid)
+			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
 		case keyK:
 			app.statusBar.Push(app.statusID, "up pressed")
-			app.tiles[2+rand.Intn(4)*4].image.SetFromFile(randomImage())
 		case keyRight:
 			app.statusBar.Push(app.statusID, "right pressed")
-			app.tiles[3+rand.Intn(4)*4].image.SetFromFile(randomImage())
+			err := game.move(goRight)
+			if err != nil {
+				app.display.Beep()
+				return
+			}
+			log.Println(game.grid)
+			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
 		case keyL:
 			app.statusBar.Push(app.statusID, "right pressed")
-			app.tiles[3+rand.Intn(4)*4].image.SetFromFile(randomImage())
 		default:
 			app.statusBar.Push(app.statusID, "fam I don't know")
 		}
@@ -267,4 +317,212 @@ func randomImage() string {
 		return v
 	}
 	return "error"
+}
+
+func (g *gameState) move(d direction) error {
+	var canmove bool
+	switch d {
+	case goLeft:
+		for y := 0; y <= 3; y++ { //vertical
+			for x := 3; x >= 0; x-- { //horizontal
+				if g.grid[y][x] != 0 { //If the square is empty we don't have to move it
+					if x == 0 { //If we are at the left can't go further left
+						continue
+					}
+					if g.grid[y][x-1] == 0 { //If the square to the left is empty move the current square left
+						g.grid[y][x-1], g.grid[y][x] = g.grid[y][x], g.grid[y][x-1]
+						canmove = true
+					} else if g.grid[y][x-1] == g.grid[y][x] { //If the square to the left is full and the same merge
+						g.grid[y][x-1] *= 2
+						g.grid[y][x] = 0
+						g.score += g.grid[y][x-1]
+						x-- //We made a merge and can't make another merge using that tile
+						canmove = true
+					} //If it is another value don't move
+				}
+			}
+			for x := 0; x < 3; x++ {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y][x+1] = g.grid[y][x+1], g.grid[y][x]
+				}
+			}
+			for x := 0; x < 3; x++ {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y][x+1] = g.grid[y][x+1], g.grid[y][x]
+				}
+			}
+			for x := 0; x < 3; x++ {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y][x+1] = g.grid[y][x+1], g.grid[y][x]
+				}
+			}
+			for x := 0; x < 3; x++ {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y][x+1] = g.grid[y][x+1], g.grid[y][x]
+				}
+			}
+		}
+	case goDown:
+		//		for x := 0; x <= 3; x++ { //horizontal
+		//			for y := 3; y >= 0; y++ { //vertical
+		//			}
+		//		}
+		for x := 0; x <= 3; x++ { //horizontal
+			for y := 0; y <= 3; y++ { //vertical
+				if g.grid[y][x] != 0 { //If the square is empty we don't have to move it
+					if y == 3 { //If we are at the left can't go further left
+						continue
+					}
+					if g.grid[y+1][x] == 0 { //If the square to the left is empty move the current square left
+						g.grid[y+1][x], g.grid[y][x] = g.grid[y][x], g.grid[y+1][x]
+						canmove = true
+					} else if g.grid[y+1][x] == g.grid[y][x] { //If the square to the left is full and the same merge
+						g.grid[y+1][x] *= 2
+						g.grid[y][x] = 0
+						g.score += g.grid[y+1][x]
+						y-- //We made a merge and can't make another merge using that tile
+						canmove = true
+					} //If it is another value don't move
+				}
+			}
+			for y := 3; y > 0; y-- {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y-1][x] = g.grid[y-1][x], g.grid[y][x]
+				}
+			}
+			for y := 3; y > 0; y-- {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y-1][x] = g.grid[y-1][x], g.grid[y][x]
+				}
+			}
+			for y := 3; y > 0; y-- {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y-1][x] = g.grid[y-1][x], g.grid[y][x]
+				}
+			}
+			for y := 3; y > 0; y-- {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y-1][x] = g.grid[y-1][x], g.grid[y][x]
+				}
+			}
+		}
+	case goUp:
+		//		for x := 0; x <= 3; x++ { //horizontal
+		//			for y := 3; y >= 0; y++ { //vertical
+		//			}
+		//		}
+		for x := 0; x <= 3; x++ { //vertical
+			for y := 3; y >= 0; y-- { //horizontal
+				if g.grid[y][x] != 0 { //If the square is empty we don't have to move it
+					if y == 0 { //If we are at the left can't go further left
+						continue
+					}
+					if g.grid[y-1][x] == 0 { //If the square to the left is empty move the current square left
+						g.grid[y-1][x], g.grid[y][x] = g.grid[y][x], g.grid[y-1][x]
+						canmove = true
+					} else if g.grid[y-1][x] == g.grid[y][x] { //If the square to the left is full and the same merge
+						g.grid[y-1][x] *= 2
+						g.grid[y][x] = 0
+						g.score += g.grid[y-1][x]
+						y-- //We made a merge and can't make another merge using that tile
+						canmove = true
+					} //If it is another value don't move
+				}
+			}
+			for y := 0; y < 3; y++ {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y+1][x] = g.grid[y+1][x], g.grid[y][x]
+				}
+			}
+			for y := 0; y < 3; y++ {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y+1][x] = g.grid[y+1][x], g.grid[y][x]
+				}
+			}
+			for y := 0; y < 3; y++ {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y+1][x] = g.grid[y+1][x], g.grid[y][x]
+				}
+			}
+			for y := 0; y < 3; y++ {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y+1][x] = g.grid[y+1][x], g.grid[y][x]
+				}
+			}
+		}
+	case goRight:
+		//		for y := 0; y <= 3; y++ { //vertical
+		//			for x := 3; x >= 0; x-- { //horizontal
+		//			}
+		//		}
+		for y := 0; y <= 3; y++ { //vertical
+			for x := 0; x <= 3; x++ { //horizontal
+				if g.grid[y][x] != 0 { //If the square is empty we don't have to move it
+					if x == 3 { //If we are at the RIGHT can't go further RIGHT
+						continue
+					}
+					if g.grid[y][x+1] == 0 { //If the square to the RIGHT is empty move the current square RIGHT
+						g.grid[y][x+1], g.grid[y][x] = g.grid[y][x], g.grid[y][x+1]
+						canmove = true
+					} else if g.grid[y][x+1] == g.grid[y][x] { //If the square to the RIGHT is full and the same merge
+						g.grid[y][x+1] *= 2
+						g.grid[y][x] = 0
+						g.score += g.grid[y][x+1]
+						x++ //We made a merge and can't make another merge using that tile
+						canmove = true
+					} //If it is another value don't move
+				}
+			}
+			for x := 3; x > 0; x-- {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y][x-1] = g.grid[y][x-1], g.grid[y][x]
+				}
+			}
+			for x := 3; x > 0; x-- {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y][x-1] = g.grid[y][x-1], g.grid[y][x]
+				}
+			}
+			for x := 3; x > 0; x-- {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y][x-1] = g.grid[y][x-1], g.grid[y][x]
+				}
+			}
+			for x := 3; x > 0; x-- {
+				if g.grid[y][x] == 0 { //Make them all go fully left
+					g.grid[y][x], g.grid[y][x-1] = g.grid[y][x-1], g.grid[y][x]
+				}
+			}
+		}
+	}
+	if canmove {
+		if err := g.spawn(); err != nil {
+			panic(err)
+		}
+		return nil
+	} else {
+		return errors.New("Illegal move")
+	}
+}
+
+//Spawn a two in a random empty square
+
+func (g *gameState) spawn() error {
+	var options []int
+	for i := 0; i < 16; i++ {
+		if g.grid[i/4][i%4] == 0 {
+			options = append(options, i)
+		}
+	}
+	if len(options) == 0 {
+		return errors.New("game over, can't spawn")
+	}
+	toSpawn := options[rand.Intn(len(options))]
+	if r := rand.Float64(); r > 0.8 {
+		g.grid[toSpawn/4][toSpawn%4] = 4
+	} else {
+		g.grid[toSpawn/4][toSpawn%4] = 2
+
+	}
+	return nil
 }
