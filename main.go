@@ -246,6 +246,7 @@ func main() {
 
 	//Placeholder
 	signalmap["helpClicked"] = func() {
+		randomImages(&game.grid, app.tiles)
 	}
 
 	signalmap["aboutClicked"] = func() {
@@ -395,19 +396,23 @@ func main() {
 	//Done with signal handlers
 
 	//Start at the default state
-	signalmap["resetClicked"].(func())()
-
+	//signalmap["resetClicked"].(func())()
+	if err := game.spawn(); err != nil {
+		fmt.Println(game.grid)
+	}
 	app.window.Show()
 	gtk.Main()
 }
 
-//Relies on random map traversal
-//UNUSED
-func randomImage() string {
-	for _, v := range nums {
-		return v
+func randomImages(g *grid, t [16]tile) {
+	for i := 0; i < 16; i++ {
+		for k, v := range nums {
+			g[i/4][i%4] = k
+			t[i].image.SetFromFile(v)
+			break
+		}
 	}
-	return "error"
+
 }
 
 //Moves if it is legal to do so
