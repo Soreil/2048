@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -14,6 +13,27 @@ import (
 )
 
 type direction int
+type gameError string
+
+//error types for internal use
+const (
+	moveError    gameError = "Failed to move"
+	fullError    gameError = "No places left to add tiles and no moves to make"
+	inputError   gameError = "Illegal input received"
+	tooHighError gameError = "We don't have that tile(yet)"
+)
+
+type encouragement string
+
+const (
+	normal   encouragement = "Good luck getting 2048!"
+	past2048 encouragement = "See how far you can go!"
+	gameOver encouragement = "Game Over!"
+)
+
+func (g gameError) Error() string {
+	return string(g)
+}
 
 //movement directions
 const (
@@ -41,14 +61,19 @@ type tile struct {
 	image *gtk.Image
 }
 
+//Backing state decoupled from GUI
 type gameState struct {
-	grid  grid
-	score int
+	grid   grid
+	score  int
+	errors map[direction]error
 }
 
+//method receiver for the tiles
 type grid [4][4]int
 
+//Output for terminal
 func (g grid) String() string {
+	//Extra newline added on front for log package default logger
 	return fmt.Sprintf("\n%4v\n%4v\n%4v\n%4v", g[0], g[1], g[2], g[3])
 }
 
@@ -94,7 +119,10 @@ func main() {
 
 	//For autoconnect usage
 	signalmap := make(map[string]interface{})
+
+	//Gtk view of the application
 	var app app
+	//Decoupled view of the application
 	var game gameState
 
 	builder, err := gtk.BuilderNew()
@@ -203,6 +231,7 @@ func main() {
 		app.window = w
 	}
 
+	//Used for sending audible bells
 	app.display, err = gdk.DisplayGetDefault()
 	if err != nil {
 		panic(err)
@@ -228,76 +257,137 @@ func main() {
 
 	//TODO(sjon): Change to storing images in memory instead of loading from disk every single time
 	signalmap["resetClicked"] = func() {
+		//Reset all tiles in GUI and backing store
 		for i := 0; i < 16; i++ {
 			app.tiles[i].image.SetFromFile("img/empty.png")
 			game.grid[i/4][i%4] = 0
 		}
+		//Reset all score in GUI and backing store
 		game.score = 0
 		score := strconv.Itoa(game.score)
 		app.scoreCounter.SetLabel(score)
+
+		//Reset error count
+		game.errors = make(map[direction]error)
+		//Reset encouragement
+		app.encouragement.SetLabel(string(normal))
+
+		//Perform first tile placement
 		err := game.spawn()
 		if err != nil {
 			panic(err)
 		}
+		//Display first move in TUI
+		//TODO(sjon): display in GUI
 		log.Println(game.grid)
 	}
 
-	//Quit singal handler
 	signalmap["removeWindow"] = func() {
 		gtk.MainQuit()
 	}
 
 	//Currently only for moving the tiles
 	//TODO(sjon): Change to not duplicate code for different input schemes
+	//TODO(sjon): Change to not duplicate code for bulk of move
 	signalmap["inputHandler"] = func(win *gtk.Window, ev *gdk.Event) {
+
 		keyEvent := &gdk.EventKey{ev}
+
+		defer func() {
+			if len(game.errors) == 4 {
+				for _, v := range game.errors {
+					if v != fullError {
+						break
+					}
+				}
+				fmt.Println(gameOver)
+				app.encouragement.SetLabel(string(gameOver))
+			}
+		}()
+
 		switch keyEvent.KeyVal() {
 		case keyLeft:
 			app.statusBar.Push(app.statusID, "left pressed")
 			err := game.move(goLeft)
 			if err != nil {
-				app.display.Beep()
-				return
+				if err == moveError {
+					app.display.Beep()
+					return
+				} else if err == fullError {
+					game.errors[goLeft] = err
+					return
+				} else {
+					panic(err)
+				}
 			}
+			game.errors = make(map[direction]error)
+			//Print to terminal
+			//TODO(sjon): Print to display
 			log.Println(game.grid)
+			//Print score to display
 			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
-		case keyH:
-			app.statusBar.Push(app.statusID, "left pressed")
+		//case keyH:
+		//	app.statusBar.Push(app.statusID, "left pressed")
 		case keyDown:
 			app.statusBar.Push(app.statusID, "down pressed")
 			err := game.move(goDown)
 			if err != nil {
-				app.display.Beep()
-				return
+				if err == moveError {
+					app.display.Beep()
+					return
+				} else if err == fullError {
+					game.errors[goDown] = err
+					return
+				} else {
+					panic(err)
+				}
 			}
+			//Successful move, reset error counter and process new state
+			game.errors = make(map[direction]error)
 			log.Println(game.grid)
 			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
-		case keyJ:
-			app.statusBar.Push(app.statusID, "down pressed")
+		//case keyJ:
+		//	app.statusBar.Push(app.statusID, "down pressed")
 		case keyUp:
 			app.statusBar.Push(app.statusID, "up pressed")
 			err := game.move(goUp)
 			if err != nil {
-				app.display.Beep()
-				return
+				if err == moveError {
+					app.display.Beep()
+					return
+				} else if err == fullError {
+					game.errors[goUp] = err
+					return
+				} else {
+					panic(err)
+				}
 			}
+			game.errors = make(map[direction]error)
 			log.Println(game.grid)
 			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
-		case keyK:
-			app.statusBar.Push(app.statusID, "up pressed")
+		//case keyK:
+		//	app.statusBar.Push(app.statusID, "up pressed")
 		case keyRight:
 			app.statusBar.Push(app.statusID, "right pressed")
 			err := game.move(goRight)
 			if err != nil {
-				app.display.Beep()
-				return
+				if err == moveError {
+					app.display.Beep()
+					return
+				} else if err == fullError {
+					game.errors[goRight] = err
+					return
+				} else {
+					panic(err)
+				}
 			}
+			game.errors = make(map[direction]error)
 			log.Println(game.grid)
 			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
-		case keyL:
-			app.statusBar.Push(app.statusID, "right pressed")
+		//case keyL:
+		//	app.statusBar.Push(app.statusID, "right pressed")
 		default:
-			app.statusBar.Push(app.statusID, "fam I don't know")
+			app.statusBar.Push(app.statusID, fmt.Sprint(inputError))
 		}
 	}
 
@@ -312,6 +402,7 @@ func main() {
 }
 
 //Relies on random map traversal
+//UNUSED
 func randomImage() string {
 	for _, v := range nums {
 		return v
@@ -319,6 +410,8 @@ func randomImage() string {
 	return "error"
 }
 
+//Moves if it is legal to do so
+//TODO(sjon): find the error in this code or verify whether it exists
 func (g *gameState) move(d direction) error {
 	var canmove bool
 	switch d {
@@ -496,12 +589,23 @@ func (g *gameState) move(d direction) error {
 		}
 	}
 	if canmove {
+		//We can't spawn if we are full or didn't make a legal move
+		//TODO(sjon): Handle full differently from an illegal move
 		if err := g.spawn(); err != nil {
 			panic(err)
 		}
 		return nil
 	} else {
-		return errors.New("Illegal move")
+		for i := 0; i < 16; i++ {
+			if g.grid[i/4][i%4] == 0 {
+				return moveError
+			}
+		}
+		//Well we couldn't find an empty slot
+		//And we didn't make a successfull move this round
+		//But that only described one of the four directions we can't move in
+		//We aren't game over until all directions have a fullerror
+		return fullError
 	}
 }
 
@@ -515,7 +619,7 @@ func (g *gameState) spawn() error {
 		}
 	}
 	if len(options) == 0 {
-		return errors.New("game over, can't spawn")
+		return fullError
 	}
 	toSpawn := options[rand.Intn(len(options))]
 	if r := rand.Float64(); r > 0.8 {
