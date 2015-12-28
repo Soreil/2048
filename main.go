@@ -430,6 +430,7 @@ func randomImages(g *grid, t [tileCount]tile) {
 
 //Moves if it is legal to do so
 //TODO(sjon): find the error in this code or verify whether it exists
+//TODO(sjon): roll up the loops at the end of each case
 func (g *gameState) move(d direction) error {
 	var canmove bool
 
@@ -475,10 +476,6 @@ func (g *gameState) move(d direction) error {
 			}
 		}
 	case goDown:
-		//		for x := 0; x <= 3; x++ { //horizontal
-		//			for y := 3; y >= 0; y++ { //vertical
-		//			}
-		//		}
 		for x := 0; x <= 3; x++ { //horizontal
 			for y := 0; y <= 3; y++ { //vertical
 				if g.grid[y][x] != 0 { //If the square is empty we don't have to move it
@@ -519,10 +516,6 @@ func (g *gameState) move(d direction) error {
 			}
 		}
 	case goUp:
-		//		for x := 0; x <= 3; x++ { //horizontal
-		//			for y := 3; y >= 0; y++ { //vertical
-		//			}
-		//		}
 		for x := 0; x <= 3; x++ { //vertical
 			for y := 3; y >= 0; y-- { //horizontal
 				if g.grid[y][x] != 0 { //If the square is empty we don't have to move it
@@ -563,10 +556,6 @@ func (g *gameState) move(d direction) error {
 			}
 		}
 	case goRight:
-		//		for y := 0; y <= 3; y++ { //vertical
-		//			for x := 3; x >= 0; x-- { //horizontal
-		//			}
-		//		}
 		for y := 0; y <= 3; y++ { //vertical
 			for x := 0; x <= 3; x++ { //horizontal
 				if g.grid[y][x] != 0 { //If the square is empty we don't have to move it
@@ -621,10 +610,6 @@ func (g *gameState) move(d direction) error {
 			return moveError
 		}
 	}
-	//Well we couldn't find an empty slot
-	//And we didn't make a successfull move this round
-	//But that only described one of the four directions we can't move in
-	//We aren't game over until all directions have a fullerror
 	return fullError
 }
 
