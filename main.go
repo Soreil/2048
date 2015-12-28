@@ -31,6 +31,14 @@ const (
 	gameOver encouragement = "Game Over!"
 )
 
+const (
+	tileCount  = 16
+	rowSize    = 4
+	columnSize = 4
+)
+
+const spawnRate = 0.9
+
 func (g gameError) Error() string {
 	return string(g)
 }
@@ -42,6 +50,21 @@ const (
 	goUp
 	goRight
 )
+
+func (d direction) String() string {
+	switch d {
+	case goLeft:
+		return "left"
+	case goDown:
+		return "down"
+	case goUp:
+		return "up"
+	case goRight:
+		return "right"
+	default:
+		return "unknown"
+	}
+}
 
 //Keycodes used by GTK
 const (
@@ -55,10 +78,36 @@ const (
 	keyL     = 108
 )
 
+type image struct {
+	*gtk.Image
+}
+
+func (i image) Write(p []byte) (n int, err error) {
+	i.SetFromFile(string(p))
+	return len(p), err
+}
+
 //Image resides in the EventBox
 type tile struct {
 	event *gtk.EventBox
-	image *gtk.Image
+	image
+}
+
+type tiles [tileCount]tile
+
+func (t tile) set(n int) (err error) {
+	if val, ok := nums[n]; ok {
+		_, err = t.Write([]byte(val))
+	} else {
+		return tooHighError
+	}
+	return
+}
+
+func (t tiles) set(grid grid) {
+	for i := 0; i < len(t); i++ {
+		t[i].set(grid[i/columnSize][i%rowSize])
+	}
 }
 
 //Backing state decoupled from GUI
@@ -69,12 +118,29 @@ type gameState struct {
 }
 
 //method receiver for the tiles
-type grid [4][4]int
+type grid [columnSize][rowSize]int
 
 //Output for terminal
 func (g grid) String() string {
 	//Extra newline added on front for log package default logger
 	return fmt.Sprintf("\n%4v\n%4v\n%4v\n%4v", g[0], g[1], g[2], g[3])
+}
+
+type scoreCounter struct {
+	*gtk.Label
+}
+
+func (s scoreCounter) set(n int) {
+	s.SetLabel(strconv.Itoa(n))
+}
+
+type statusBar struct {
+	*gtk.Statusbar
+	contextID uint
+}
+
+func (s statusBar) set(state string) {
+	s.Push(s.contextID, state)
 }
 
 //All elements from the builder output we will work with
@@ -88,14 +154,14 @@ type app struct {
 	aboutButton   *gtk.Button
 	encouragement *gtk.Label
 	scoreLabel    *gtk.Label
-	scoreCounter  *gtk.Label
-	tiles         [16]tile
-	statusBar     *gtk.Statusbar
-	statusID      uint
+	tiles         tiles
+	statusBar
+	scoreCounter
 }
 
 //Images of tiles, if a score above 4096 happens we will need new tiles!
 var nums = map[int]string{
+	0:    "img/empty.png",
 	2:    "img/2.png",
 	4:    "img/4.png",
 	8:    "img/8.png",
@@ -133,7 +199,7 @@ func main() {
 	builder.AddFromFile("ui.glade")
 
 	//Set up all builder elements
-	for i := 0; i < 16; i++ {
+	for i := 0; i < tileCount; i++ {
 		n := strconv.Itoa(i + 1)
 		obj, err := builder.GetObject("eventTile" + n)
 		if err != nil {
@@ -148,7 +214,7 @@ func main() {
 			panic(err)
 		}
 		if b, ok := obj.(*gtk.Image); ok {
-			app.tiles[i].image = b
+			app.tiles[i].image = image{b}
 		}
 	}
 	obj, err := builder.GetObject("resetButton")
@@ -196,7 +262,7 @@ func main() {
 		panic(err)
 	}
 	if b, ok := obj.(*gtk.Label); ok {
-		app.scoreCounter = b
+		app.scoreCounter = scoreCounter{b}
 	}
 
 	obj, err = builder.GetObject("statusBar")
@@ -204,7 +270,7 @@ func main() {
 		panic(err)
 	}
 	if w, ok := obj.(*gtk.Statusbar); ok {
-		app.statusBar = w
+		app.statusBar = statusBar{w, w.GetContextId("arrow keys")}
 	}
 
 	obj, err = builder.GetObject("headerBar")
@@ -238,10 +304,6 @@ func main() {
 	}
 	//Done getting elements
 
-	//Context is needed so we can add messages
-	//We will only have one Context
-	app.statusID = app.statusBar.GetContextId("arrow keys")
-
 	//Signal handlers
 
 	//Placeholder
@@ -259,9 +321,9 @@ func main() {
 	//TODO(sjon): Change to storing images in memory instead of loading from disk every single time
 	signalmap["resetClicked"] = func() {
 		//Reset all tiles in GUI and backing store
-		for i := 0; i < 16; i++ {
-			app.tiles[i].image.SetFromFile("img/empty.png")
-			game.grid[i/4][i%4] = 0
+		for i := 0; i < tileCount; i++ {
+			app.tiles[i].set(0)
+			game.grid[i/columnSize][i%rowSize] = 0
 		}
 		//Reset all score in GUI and backing store
 		game.score = 0
@@ -292,10 +354,10 @@ func main() {
 	//TODO(sjon): Change to not duplicate code for bulk of move
 	signalmap["inputHandler"] = func(win *gtk.Window, ev *gdk.Event) {
 
-		keyEvent := &gdk.EventKey{ev}
+		keyEvent := &gdk.EventKey{Event: ev}
 
 		defer func() {
-			if len(game.errors) == 4 {
+			if len(game.errors) == columnSize {
 				for _, v := range game.errors {
 					if v != fullError {
 						break
@@ -306,97 +368,45 @@ func main() {
 			}
 		}()
 
+		var moveToMake direction
 		switch keyEvent.KeyVal() {
 		case keyLeft:
-			app.statusBar.Push(app.statusID, "left pressed")
-			err := game.move(goLeft)
-			if err != nil {
-				if err == moveError {
-					app.display.Beep()
-					return
-				} else if err == fullError {
-					game.errors[goLeft] = err
-					return
-				} else {
-					panic(err)
-				}
-			}
-			game.errors = make(map[direction]error)
-			//Print to terminal
-			//TODO(sjon): Print to display
-			log.Println(game.grid)
-			//Print score to display
-			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
-		//case keyH:
-		//	app.statusBar.Push(app.statusID, "left pressed")
+			moveToMake = goLeft
 		case keyDown:
-			app.statusBar.Push(app.statusID, "down pressed")
-			err := game.move(goDown)
-			if err != nil {
-				if err == moveError {
-					app.display.Beep()
-					return
-				} else if err == fullError {
-					game.errors[goDown] = err
-					return
-				} else {
-					panic(err)
-				}
-			}
-			//Successful move, reset error counter and process new state
-			game.errors = make(map[direction]error)
-			log.Println(game.grid)
-			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
-		//case keyJ:
-		//	app.statusBar.Push(app.statusID, "down pressed")
+			moveToMake = goDown
 		case keyUp:
-			app.statusBar.Push(app.statusID, "up pressed")
-			err := game.move(goUp)
-			if err != nil {
-				if err == moveError {
-					app.display.Beep()
-					return
-				} else if err == fullError {
-					game.errors[goUp] = err
-					return
-				} else {
-					panic(err)
-				}
-			}
-			game.errors = make(map[direction]error)
-			log.Println(game.grid)
-			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
-		//case keyK:
-		//	app.statusBar.Push(app.statusID, "up pressed")
+			moveToMake = goUp
 		case keyRight:
-			app.statusBar.Push(app.statusID, "right pressed")
-			err := game.move(goRight)
-			if err != nil {
-				if err == moveError {
-					app.display.Beep()
-					return
-				} else if err == fullError {
-					game.errors[goRight] = err
-					return
-				} else {
-					panic(err)
-				}
-			}
-			game.errors = make(map[direction]error)
-			log.Println(game.grid)
-			app.scoreCounter.SetLabel(strconv.Itoa(game.score))
-		//case keyL:
-		//	app.statusBar.Push(app.statusID, "right pressed")
+			moveToMake = goRight
 		default:
-			app.statusBar.Push(app.statusID, fmt.Sprint(inputError))
+			app.statusBar.set(fmt.Sprint(inputError))
+			return
 		}
+		app.statusBar.set(moveToMake.String() + " pressed")
+		err := game.move(moveToMake)
+		if err != nil {
+			if err == moveError {
+				app.display.Beep()
+				return
+			} else if err == fullError {
+				game.errors[moveToMake] = err
+				return
+			} else {
+				panic(err)
+			}
+		}
+		game.errors = make(map[direction]error)
+		//Print to terminal
+		//TODO(sjon): Print to display
+		log.Println(game.grid)
+		//Print score to display
+		app.drawMove(game)
 	}
 
 	builder.ConnectSignals(signalmap)
 	//Done with signal handlers
 
 	//Start at the default state
-	//signalmap["resetClicked"].(func())()
 	if err := game.spawn(); err != nil {
 		fmt.Println(game.grid)
 	}
@@ -404,11 +414,16 @@ func main() {
 	gtk.Main()
 }
 
-func randomImages(g *grid, t [16]tile) {
-	for i := 0; i < 16; i++ {
-		for k, v := range nums {
-			g[i/4][i%4] = k
-			t[i].image.SetFromFile(v)
+func (a app) drawMove(game gameState) {
+	a.scoreCounter.set(game.score)
+	a.tiles.set(game.grid)
+}
+
+func randomImages(g *grid, t [tileCount]tile) {
+	for i := 0; i < tileCount; i++ {
+		for k := range nums {
+			g[i/columnSize][i%rowSize] = k
+			t[i].set(g[i/columnSize][i%rowSize])
 			break
 		}
 	}
@@ -419,6 +434,7 @@ func randomImages(g *grid, t [16]tile) {
 //TODO(sjon): find the error in this code or verify whether it exists
 func (g *gameState) move(d direction) error {
 	var canmove bool
+
 	switch d {
 	case goLeft:
 		for y := 0; y <= 3; y++ { //vertical
@@ -592,34 +608,33 @@ func (g *gameState) move(d direction) error {
 				}
 			}
 		}
+	default:
+		panic(inputError)
 	}
 	if canmove {
 		//We can't spawn if we are full or didn't make a legal move
-		//TODO(sjon): Handle full differently from an illegal move
 		if err := g.spawn(); err != nil {
 			panic(err)
 		}
 		return nil
-	} else {
-		for i := 0; i < 16; i++ {
-			if g.grid[i/4][i%4] == 0 {
-				return moveError
-			}
-		}
-		//Well we couldn't find an empty slot
-		//And we didn't make a successfull move this round
-		//But that only described one of the four directions we can't move in
-		//We aren't game over until all directions have a fullerror
-		return fullError
 	}
+	for i := 0; i < tileCount; i++ {
+		if g.grid[i/columnSize][i%rowSize] == 0 {
+			return moveError
+		}
+	}
+	//Well we couldn't find an empty slot
+	//And we didn't make a successfull move this round
+	//But that only described one of the four directions we can't move in
+	//We aren't game over until all directions have a fullerror
+	return fullError
 }
 
-//Spawn a two in a random empty square
-
+//Spawn a new tile in a random empty square
 func (g *gameState) spawn() error {
 	var options []int
-	for i := 0; i < 16; i++ {
-		if g.grid[i/4][i%4] == 0 {
+	for i := 0; i < tileCount; i++ {
+		if g.grid[i/columnSize][i%rowSize] == 0 {
 			options = append(options, i)
 		}
 	}
@@ -627,10 +642,10 @@ func (g *gameState) spawn() error {
 		return fullError
 	}
 	toSpawn := options[rand.Intn(len(options))]
-	if r := rand.Float64(); r > 0.8 {
-		g.grid[toSpawn/4][toSpawn%4] = 4
+	if r := rand.Float64(); r > spawnRate {
+		g.grid[toSpawn/columnSize][toSpawn%rowSize] = 4
 	} else {
-		g.grid[toSpawn/4][toSpawn%4] = 2
+		g.grid[toSpawn/columnSize][toSpawn%rowSize] = 2
 
 	}
 	return nil
