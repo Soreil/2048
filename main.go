@@ -350,8 +350,6 @@ func main() {
 	}
 
 	//Currently only for moving the tiles
-	//TODO(sjon): Change to not duplicate code for different input schemes
-	//TODO(sjon): Change to not duplicate code for bulk of move
 	signalmap["inputHandler"] = func(win *gtk.Window, ev *gdk.Event) {
 
 		keyEvent := &gdk.EventKey{Event: ev}
